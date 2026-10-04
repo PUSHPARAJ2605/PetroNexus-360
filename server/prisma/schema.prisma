@@ -1,0 +1,436 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  ENGINEER
+  MAINTENANCE_ENGINEER
+  SAFETY_OFFICER
+  VIEWER
+}
+
+enum AssetStatus {
+  NORMAL
+  WARNING
+  CRITICAL
+  OFFLINE
+}
+
+enum Severity {
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum SimulationStatus {
+  SAFE
+  REVIEW
+  UNSAFE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(OPERATOR)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  simulations   Simulation[]
+  auditLogs     AuditLog[]
+  assignedAlerts Alert[]
+}
+
+model Field {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  location    String
+  description String?
+  latitude    Float
+  longitude   Float
+  healthScore Float    @default(90.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets          Asset[]
+  weatherReadings WeatherReading[]
+}
+
+model Asset {
+  id          String      @id @default(uuid())
+  fieldId     String
+  tag         String      @unique
+  name        String
+  type        String      // STEAM_GENERATOR, STEAM_PIPELINE, INJECTION_WELL, RESERVOIR, PRODUCTION_WELL, SRP, PRODUCTION_PIPELINE, PUMP_STATION, STORAGE_TANK
+  status      AssetStatus @default(NORMAL)
+  healthScore Float       @default(95.0)
+  riskLevel   String      @default("LOW") // LOW, MODERATE, HIGH, CRITICAL
+  description String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  field              Field               @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  sensors            Sensor[]
+  alerts             Alert[]
+  maintenanceRecords MaintenanceRecord[]
+  simulations        Simulation[]
+  auditLogs          AuditLog[]
+
+  // Dedicated polymorphic links
+  well               Well?
+  steamGenerator     SteamGenerator?
+  pipeline           Pipeline?
+  pump               Pump?
+  pumpStation        PumpStation?
+  storageTank        StorageTank?
+
+  @@index([fieldId])
+  @@index([type])
+  @@index([status])
+}
+
+model Well {
+  id           String   @id @default(uuid())
+  assetId      String   @unique
+  type         String   // INJECTION, PRODUCTION, BACKUP
+  reservoirZone String  @default("R-01")
+  depth        Float    // meters
+  pressure     Float    // bar
+  temperature  Float    // °C
+  oilRate      Float?   // BPD
+  steamRate    Float?   // t/hr
+  cssCycle     Int      @default(1)
+  lastCssDate  DateTime?
+  healthScore  Float    @default(95.0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model SteamGenerator {
+  id          String   @id @default(uuid())
+  assetId     String   @unique
+  capacity    Float    // t/hr
+  pressure    Float    // bar
+  temperature Float    // °C
+  steamQuality Float   // %
+  waterRate   Float    // m3/hr
+  fuelRate    Float    // Nm3/hr
+  efficiency  Float    // %
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model Pipeline {
+  id            String   @id @default(uuid())
+  assetId       String   @unique
+  fromAsset     String
+  toAsset       String
+  length        Float    // meters
+  diameter      Float    // inches
+  inletPressure Float    // bar
+  outletPressure Float   // bar
+  temperature   Float    // °C
+  flowRate      Float    // t/hr or m3/hr
+  heatLossRate  Float    // %
+  leakRisk      String   @default("LOW")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model Pump {
+  id           String   @id @default(uuid())
+  assetId      String   @unique
+  pumpType     String   @default("SRP")
+  strokeRate   Float    // SPM
+  strokeLength Float    // inches
+  motorCurrent Float    // A
+  motorTemp    Float    // °C
+  vibration    Float    // mm/s
+  polishedRodLoad Float // lbs
+  efficiency   Float    // %
+  runtimeHours Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model PumpStation {
+  id         String   @id @default(uuid())
+  assetId    String   @unique
+  inflowRate Float    // m3/hr
+  dischargePressure Float // bar
+  powerKW    Float
+  status     String   @default("RUNNING")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model StorageTank {
+  id           String   @id @default(uuid())
+  assetId      String   @unique
+  capacityM3   Float
+  currentLevel Float    // %
+  temperature  Float    // °C
+  netVolumeM3  Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model Sensor {
+  id         String   @id @default(uuid())
+  assetId    String
+  tag        String   @unique
+  name       String
+  type       String   // PRESSURE, TEMPERATURE, FLOW, VIBRATION, LEVEL, CURRENT
+  unit       String
+  minRange   Float
+  maxRange   Float
+  lastValue  Float?
+  lastReadAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  asset      Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  readings   SensorReading[]
+
+  @@index([assetId])
+  @@index([type])
+}
+
+model SensorReading {
+  id        String   @id @default(uuid())
+  sensorId  String
+  value     Float
+  timestamp DateTime @default(now())
+
+  sensor    Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  @@index([sensorId])
+  @@index([timestamp])
+}
+
+model WeatherReading {
+  id                  String   @id @default(uuid())
+  fieldId             String
+  temperature         Float    // °C
+  humidity            Float    // %
+  windSpeed           Float    // km/h
+  rainfall            Float    // mm
+  pressure            Float    // hPa
+  impactLevel         String   @default("LOW") // LOW, MODERATE, HIGH
+  estimatedHeatLoss   Float    @default(4.5) // %
+  timestamp           DateTime @default(now())
+
+  field               Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([fieldId])
+  @@index([timestamp])
+}
+
+model Simulation {
+  id              String           @id @default(uuid())
+  userId          String
+  assetId         String?
+  type            String           // STEAM_INJECTION, PRODUCTION_RELEASE, SOAK_CYCLE, SRP_OPERATION
+  title           String
+  description     String?
+  status          SimulationStatus @default(SAFE)
+  approvalStatus  ApprovalStatus   @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset           Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  input           SimulationInput?
+  result          SimulationResult?
+  scenarioMembers ScenarioItem[]
+  auditLogs       AuditLog[]
+
+  @@index([userId])
+  @@index([assetId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SimulationInput {
+  id                 String   @id @default(uuid())
+  simulationId       String   @unique
+  steamPressure      Float?   // bar
+  steamTemperature   Float?   // °C
+  steamFlowRate      Float?   // t/hr
+  injectionDuration  Float?   // hours / days
+  soakDuration       Float?   // days
+  ambientTemperature Float?   // °C
+  humidity           Float?   // %
+  windSpeed          Float?   // km/h
+  reservoirPressure  Float?   // bar
+  wellheadPressure   Float?   // bar
+  valveOpeningPct    Float?   // %
+  pumpSpeed          Float?   // SPM
+  customParams       Json?
+  createdAt          DateTime @default(now())
+
+  simulation         Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+}
+
+model SimulationResult {
+  id                   String   @id @default(uuid())
+  simulationId         String   @unique
+  predReservoirTemp    Float?   // °C
+  predReservoirPressure Float?  // bar
+  heatPenetrationIndex Float?   // 0-100 or meters
+  estimatedHeatLoss    Float?   // %
+  steamConsumption     Float?   // tonnes
+  estimatedOilMobility Float?   // cP or ratio
+  expectedProduction   Float?   // BPD
+  energyRequirement    Float?   // MWh
+  pipelineStress       Float?   // %
+  wellIntegrityRisk    String?  // LOW, MEDIUM, HIGH
+  riskScore            Float    @default(15.0)
+  status               SimulationStatus @default(SAFE)
+  reasons              String[]
+  recommendations      String[]
+  customMetrics        Json?
+  createdAt            DateTime @default(now())
+
+  simulation           Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+}
+
+model Scenario {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       ScenarioItem[]
+}
+
+model ScenarioItem {
+  id           String   @id @default(uuid())
+  scenarioId   String
+  simulationId String
+  label        String   // e.g. "Scenario A: 80 bar"
+  createdAt    DateTime @default(now())
+
+  scenario     Scenario   @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  simulation   Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@unique([scenarioId, simulationId])
+}
+
+model Alert {
+  id         String      @id @default(uuid())
+  assetId    String
+  severity   Severity    @default(WARNING)
+  category   String      // PIPELINE, PUMP, STEAM, WELL, SAFETY, WEATHER
+  message    String
+  status     AlertStatus @default(ACTIVE)
+  assignedTo String?
+  notes      String?
+  timestamp  DateTime    @default(now())
+  resolvedAt DateTime?
+
+  asset      Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+
+  @@index([assetId])
+  @@index([severity])
+  @@index([status])
+  @@index([timestamp])
+}
+
+model MaintenanceRecord {
+  id               String    @id @default(uuid())
+  assetId          String
+  title            String
+  description      String
+  maintenanceType  String    // PREVENTIVE, CORRECTIVE, INSPECTION
+  priority         String    @default("MEDIUM")
+  status           String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  scheduledDate    DateTime
+  completedDate    DateTime?
+  findings         String?
+  technician       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  asset            Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([status])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  assetId       String?
+  simulationId  String?
+  action        String
+  details       String
+  previousValue String?
+  newValue      String?
+  approvalStatus String?
+  timestamp     DateTime @default(now())
+
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  asset         Asset?      @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  simulation    Simulation? @relation(fields: [simulationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([assetId])
+  @@index([simulationId])
+  @@index([timestamp])
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  title       String
+  type        String   // PRODUCTION, STEAM_EFFICIENCY, ASSET_HEALTH, MAINTENANCE, SAFETY, ENERGY
+  generatedBy String
+  summary     String
+  data        Json
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+}
