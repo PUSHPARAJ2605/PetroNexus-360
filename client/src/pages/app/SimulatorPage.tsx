@@ -65,6 +65,12 @@ export const SimulatorPage: React.FC = () => {
   const [simResult, setSimResult] = useState<any>(null);
   const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
 
+  const [simulationError, setSimulationError] = useState<string | null>(null);
+  const [calculatedInputs, setCalculatedInputs] = useState<string | null>(null);
+  const steamInputs = JSON.stringify([wellTag, steamPressure, steamTemperature, steamFlowRate, injectionDurationDays, soakDurationDays, ambientTemp, windSpeed]);
+  const productionInputs = JSON.stringify([prodWell, resPressure, whPressure, prodTemp, valveOpeningPct, pumpSpeedSpm]);
+  const inputsChanged = calculatedInputs !== null && calculatedInputs !== (activeTab === 'production-release' ? productionInputs : steamInputs);
+
   // Scenario Comparison state
   const [compareData, setCompareData] = useState<any>(null);
   const [comparing, setComparing] = useState(false);
@@ -72,6 +78,7 @@ export const SimulatorPage: React.FC = () => {
   // Run Steam Injection Simulation & Move to Digital Twin
   const handleRunSimulation = async () => {
     setSimulating(true);
+    setSimulationError(null);
     setApprovalMessage(null);
     try {
       const response = await api.post('/simulations', {
@@ -88,6 +95,7 @@ export const SimulatorPage: React.FC = () => {
         saveToDatabase: true,
       });
       setSimResult(response.data);
+      setCalculatedInputs(steamInputs);
 
       // Automatically navigate to Digital Twin page to show what happens in the field
       setTimeout(() => {
@@ -112,6 +120,7 @@ export const SimulatorPage: React.FC = () => {
       }, 400);
     } catch (err) {
       console.error('Simulation error:', err);
+      setSimulationError('The simulation could not be completed. Your inputs are preserved. Please try again.');
       setSimulating(false);
     }
   };
@@ -119,6 +128,7 @@ export const SimulatorPage: React.FC = () => {
   // Run Production Release Simulation & Move to Digital Twin
   const handleRunProductionSimulation = async () => {
     setSimulating(true);
+    setSimulationError(null);
     setApprovalMessage(null);
     try {
       const response = await api.post('/simulations', {
@@ -133,6 +143,7 @@ export const SimulatorPage: React.FC = () => {
         saveToDatabase: true,
       });
       setSimResult(response.data);
+      setCalculatedInputs(productionInputs);
 
       setTimeout(() => {
         navigate('/app/digital-twin?simulation=active', {
@@ -156,6 +167,7 @@ export const SimulatorPage: React.FC = () => {
       }, 400);
     } catch (err) {
       console.error('Simulation error:', err);
+      setSimulationError('The simulation could not be completed. Your inputs are preserved. Please try again.');
       setSimulating(false);
     }
   };
@@ -210,6 +222,8 @@ export const SimulatorPage: React.FC = () => {
     setValveOpeningPct(65);
     setPumpSpeedSpm(7.2);
     setSimResult(null);
+    setCalculatedInputs(null);
+    setSimulationError(null);
     setApprovalMessage(null);
     setCompareData(null);
     setResetMessage(true);
@@ -272,6 +286,12 @@ export const SimulatorPage: React.FC = () => {
 
       {/* Simulator Disclaimer Notice */}
       <DisclaimerBanner type="simulation" />
+      {simulationError && <div role="alert" className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 text-sm text-rose-200">{simulationError}</div>}
+      {(activeTab === 'steam-injection' || activeTab === 'production-release') && (
+        <div role="status" aria-live="polite" className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+          {simulating ? 'Calculating scenario. Please wait…' : !simResult ? 'Example outputs are shown for reference. Run a simulation to calculate results for your inputs.' : inputsChanged ? 'Inputs changed — displayed results belong to the previous run. Run the simulation again before reviewing this scenario.' : 'Calculated results match the last submitted inputs.'}
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex border-b border-slate-800 overflow-x-auto gap-2">
@@ -635,7 +655,7 @@ export const SimulatorPage: React.FC = () => {
 
               <button
                 onClick={handleApproveScenario}
-                disabled={status === 'UNSAFE'}
+                disabled={status === 'UNSAFE' || inputsChanged || !simResult?.simulationId || simulating}
                 className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs font-mono flex items-center gap-2 disabled:opacity-40 shadow-lg shadow-emerald-500/20"
               >
                 <ShieldCheck className="w-4 h-4" />

@@ -35,22 +35,22 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   }[status];
 
   return (
-    <div className={`petro-card p-4 transition-all duration-200 border ${statusBorder}`}>
+    <div className={`petro-card kpi-card p-5 transition-all duration-200 border ${statusBorder}`}>
       <div className="flex items-start justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-slate-400">{title}</span>
+        <span className="text-xs font-medium tracking-normal text-slate-400">{title}</span>
         <div className={`p-2 rounded-lg border ${iconColor}`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
 
       <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-2xl font-bold tracking-tight text-white font-mono">{value}</span>
+        <span className="text-3xl font-semibold tracking-tight text-white tabular-nums">{value}</span>
         {unit && <span className="text-xs text-slate-400 font-medium">{unit}</span>}
       </div>
 
       {(trend || subtitle) && (
         <div className="mt-2.5 flex items-center justify-between text-xs pt-2 border-t border-slate-800/60">
-          {subtitle && <span className="text-slate-400 truncate">{subtitle}</span>}
+          {subtitle && <span className="text-slate-400">{subtitle}</span>}
           {trend && (
             <span
               className={`font-mono text-[11px] font-medium ml-auto ${

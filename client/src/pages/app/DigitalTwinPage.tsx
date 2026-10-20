@@ -56,6 +56,8 @@ export const DigitalTwinPage: React.FC = () => {
     Boolean(isSimActiveQuery || stateSimulationResult || location.state?.fromSimulator)
   );
 
+  const [summaryExpanded, setSummaryExpanded] = useState(true);
+
   // View dimension: 3D dynamic WebGL model vs 2D schematic PFD
   const [viewDimension, setViewDimension] = useState<'3D' | '2D'>('3D');
 
@@ -218,6 +220,13 @@ export const DigitalTwinPage: React.FC = () => {
       </div>
 
       {/* CONDITIONAL TOP BANNER: SIMULATED COCKPIT vs LIVE BASELINE MONITORING */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <p className="text-slate-300">{isSimulatedMode ? 'Scenario preview — baseline telemetry remains separate from predicted outcomes.' : 'Baseline monitoring — select equipment to inspect its telemetry.'}</p>
+        <button type="button" onClick={() => setSummaryExpanded(value => !value)} aria-expanded={summaryExpanded} aria-controls="field-summary" className="px-3 py-2 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800">
+          {summaryExpanded ? 'Collapse summary' : 'Expand summary'}
+        </button>
+      </div>
+      <div id="field-summary" hidden={!summaryExpanded}>
       {isSimulatedMode ? (
         <div
           className={`petro-card p-5 rounded-2xl shadow-xl space-y-4 border-2 transition-all ${
@@ -491,6 +500,8 @@ export const DigitalTwinPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      </div>
 
       {/* DIGITAL TWIN VISUALIZATION CANOPY (3D WEBGL MODEL vs 2D FLOW SCHEMATIC) */}
       <div className="flex items-center justify-between pb-1">

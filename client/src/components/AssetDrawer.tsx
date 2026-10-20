@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { X, Activity, AlertTriangle, Wrench, Shield, TrendingUp, Cpu, ShieldCheck, RefreshCw, Zap, CheckCircle2 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
@@ -11,6 +11,8 @@ interface AssetDrawerProps {
 }
 
 export const AssetDrawer: React.FC<AssetDrawerProps> = ({ assetTag, onClose }) => {
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const [loadError, setLoadError] = useState(false);
   const [assetData, setAssetData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
@@ -18,18 +20,31 @@ export const AssetDrawer: React.FC<AssetDrawerProps> = ({ assetTag, onClose }) =
   const { liveState } = useSocket();
 
   useEffect(() => {
-    if (!assetTag) {
-      setAssetData(null);
-      return;
-    }
-
+    if (!assetTag) { setAssetData(null); return; }
+    let active = true;
+    setAssetData(null);
+    setActionMessage(null);
+    setLoadError(false);
     setLoading(true);
     api.get(`/assets/${assetTag}`)
-      .then((res) => {
-        setAssetData(res.data);
-      })
-      .catch((err) => console.error('Failed to load asset drawer:', err))
-      .finally(() => setLoading(false));
+      .then(res => { if (active) setAssetData(res.data); })
+      .catch(() => { if (active) setLoadError(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [assetTag]);
+
+  useEffect(() => {
+    if (!assetTag) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    closeButton.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
   }, [assetTag]);
 
   if (!assetTag) return null;
@@ -76,7 +91,7 @@ export const AssetDrawer: React.FC<AssetDrawerProps> = ({ assetTag, onClose }) =
   }));
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#092036]/95 backdrop-blur-xl border-l border-cyan-500/30 shadow-2xl flex flex-col transition-transform duration-300">
+    <section role="region" aria-labelledby="asset-drawer-title" className="asset-inspector fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#092036] border-l border-slate-700 shadow-2xl flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
         <div className="flex items-center gap-3">
@@ -85,13 +100,16 @@ export const AssetDrawer: React.FC<AssetDrawerProps> = ({ assetTag, onClose }) =
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white font-mono">{assetTag}</h2>
+              <h2 id="asset-drawer-title" className="text-base font-bold text-white font-mono">{assetTag}</h2>
               <StatusBadge status={currentStatus} size="sm" />
             </div>
             <p className="text-xs text-slate-400 truncate max-w-[240px]">{assetData?.name || 'Heavy Oil Asset'}</p>
           </div>
         </div>
         <button
+          ref={closeButton}
+          aria-label="Close asset details"
+          title="Close asset details (Escape)"
           onClick={onClose}
           className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
         >
@@ -104,6 +122,8 @@ export const AssetDrawer: React.FC<AssetDrawerProps> = ({ assetTag, onClose }) =
           <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mr-2"></div>
           Loading Digital Twin telemetry...
         </div>
+      ) : loadError ? (
+        <div role="alert" className="p-6 text-sm text-amber-200">Unable to load asset details. Close this panel and select the asset again to retry.</div>
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           {/* Action Feedback Message */}
@@ -284,6 +304,6 @@ export const AssetDrawer: React.FC<AssetDrawerProps> = ({ assetTag, onClose }) =
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

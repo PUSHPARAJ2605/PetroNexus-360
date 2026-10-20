@@ -138,6 +138,7 @@ export const PumpsPage: React.FC = () => {
 
       {/* TOP: ANIMATED SUCKER ROD PUMP VISUALIZATION */}
       <SrpAnimation
+        assetTag={selectedPump}
         strokeRate={liveStroke}
         vibration={liveVib}
         motorTemp={liveTemp}

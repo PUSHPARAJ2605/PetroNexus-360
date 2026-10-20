@@ -21,12 +21,16 @@ import {
   UserCheck,
   LogOut,
   Layers,
-  Activity
+  Activity,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps { expanded: boolean; onToggle: () => void; }
+
+export const Sidebar: React.FC<SidebarProps> = ({ expanded, onToggle }) => {
   const { user, logout } = useAuth();
   const { isConnected, liveState } = useSocket();
   const navigate = useNavigate();
@@ -101,14 +105,18 @@ export const Sidebar: React.FC = () => {
   }
 
   return (
-    <aside className="w-64 bg-[#061524] border-r border-slate-800 flex flex-col h-screen select-none shrink-0">
+    <aside aria-label="Main navigation" className={`app-sidebar ${expanded ? "is-expanded" : "is-collapsed"} bg-[#061524] border-r border-slate-800 flex flex-col h-screen select-none shrink-0`}>
+      <button type="button" onClick={onToggle} aria-label={expanded ? 'Collapse navigation' : 'Expand navigation'} aria-expanded={expanded} className="navigation-toggle">
+        {expanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+        <span className="sidebar-label">Workspace navigation</span>
+      </button>
       {/* Brand Header */}
       <div className="h-16 px-4 border-b border-slate-800 flex items-center justify-between">
         <NavLink to="/app/dashboard" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-md shadow-cyan-500/20">
             <Layers className="w-4 h-4 text-white" />
           </div>
-          <div>
+          <div className="sidebar-label">
             <div className="flex items-center gap-1">
               <span className="font-extrabold text-sm tracking-wider text-white">PETRONEXUS</span>
               <span className="text-[10px] px-1 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">360</span>
@@ -126,7 +134,7 @@ export const Sidebar: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {navGroups.map((group) => (
           <div key={group.group}>
-            <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 font-mono">
+            <span className="sidebar-group px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 font-mono">
               {group.group}
             </span>
             <div className="space-y-0.5">
@@ -134,6 +142,8 @@ export const Sidebar: React.FC = () => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  title={item.name}
+                  aria-label={item.name}
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                       isActive
@@ -144,11 +154,11 @@ export const Sidebar: React.FC = () => {
                 >
                   <div className="flex items-center gap-2.5">
                     <item.icon className="w-4 h-4 shrink-0" />
-                    <span>{item.name}</span>
+                    <span className="sidebar-label">{item.name}</span>
                   </div>
                   {item.badge && (
                     <span
-                      className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold ${
+                      className={`sidebar-label text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold ${
                         item.badgeColor || 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                       }`}
                     >
@@ -171,7 +181,7 @@ export const Sidebar: React.FC = () => {
               alt={user?.name || 'User'}
               className="w-8 h-8 rounded-lg object-cover border border-slate-700 shrink-0"
             />
-            <div className="truncate">
+            <div className="sidebar-label truncate">
               <span className="text-xs font-semibold text-white block truncate">{user?.name || 'Operator'}</span>
               <span className="text-[10px] text-cyan-400 font-mono tracking-tight uppercase block">
                 {user?.role || 'OPERATOR'}
@@ -181,6 +191,7 @@ export const Sidebar: React.FC = () => {
           <button
             onClick={handleLogout}
             title="Sign Out"
+            aria-label="Sign Out"
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
           >
             <LogOut className="w-4 h-4" />

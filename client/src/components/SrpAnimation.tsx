@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 export interface SrpAnimationProps {
+  assetTag?: string;
   strokeRate?: number;
   vibration?: number;
   motorTemp?: number;
@@ -22,6 +23,7 @@ export interface SrpAnimationProps {
 }
 
 export const SrpAnimation: React.FC<SrpAnimationProps> = ({
+  assetTag = 'SRP-01',
   strokeRate = 7.2,
   vibration = 2.1,
   motorTemp = 62,
@@ -170,7 +172,7 @@ export const SrpAnimation: React.FC<SrpAnimationProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-bold tracking-widest text-white uppercase">
-                SRP-01 DYNAMIC BEAM DIGITAL TWIN
+                {assetTag} DYNAMIC BEAM DIGITAL TWIN
               </span>
               <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
                 isWarning ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'

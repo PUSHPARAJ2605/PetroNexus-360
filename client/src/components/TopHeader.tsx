@@ -1,10 +1,10 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { ChevronRight, CloudSun, Bell, Zap, Radio, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, CloudSun, Bell, Zap, Radio, AlertOctagon, CheckCircle2, Menu } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { DisclaimerBanner } from './DisclaimerBanner';
 
-export const TopHeader: React.FC = () => {
+export const TopHeader: React.FC<{ onToggleNavigation: () => void }> = ({ onToggleNavigation }) => {
   const location = useLocation();
   const { liveState, toggleAnomaly, isConnected } = useSocket();
 
@@ -25,7 +25,8 @@ export const TopHeader: React.FC = () => {
       <DisclaimerBanner type="global" />
 
       {/* Main Bar */}
-      <div className="h-14 px-6 flex items-center justify-between">
+      <div className="control-header min-h-14 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+        <button type="button" className="mobile-navigation-toggle" onClick={onToggleNavigation} aria-label="Toggle navigation"><Menu size={20} /></button>
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs">
           <Link to="/app/dashboard" className="text-slate-400 hover:text-cyan-400 transition-colors">
@@ -53,7 +54,7 @@ export const TopHeader: React.FC = () => {
         </div>
 
         {/* Live Control Room Indicators */}
-        <div className="flex items-center gap-4">
+        <div className="header-indicators flex flex-wrap items-center gap-2">
           {/* Weather Widget */}
           {weather && (
             <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-xs">
@@ -67,7 +68,7 @@ export const TopHeader: React.FC = () => {
           {/* Field Health Pill */}
           <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-slate-400">FIELD HEALTH:</span>
+            <span className="text-slate-400">BASELINE HEALTH:</span>
             <span className="font-bold font-mono text-emerald-400">
               {liveState?.fieldHealthScore ?? 91.2}%
             </span>
